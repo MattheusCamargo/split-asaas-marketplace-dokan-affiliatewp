@@ -38,6 +38,7 @@ use WC_Asaas\Subscription\Admin\Subscription_Admin;
 use WC_Asaas\My_Account\WooCommerce_My_Account;
 use WC_Asaas\Checkout\Checkout;
 use WC_Asaas\Webhook\Webhook_Ajax;
+use WC_Asaas\Split\Integration\Split_Integration_Manager;
 
 /**
  * Asaas Gateway for WooCommerce main class
@@ -93,6 +94,7 @@ class WC_Asaas {
 		add_filter( 'woocommerce_asaas_payment_data', array( Payment_Split::get_instance(), 'split_payment_data' ), 10, 3 );
 		add_filter( 'woocommerce_asaas_settings_sections', array( Split_Settings_Fields::get_instance(), 'add_section' ), 10, 2 );
 		add_filter( 'woocommerce_asaas_settings_fields', array( Split_Settings_Fields::get_instance(), 'add_fields' ), 10, 2 );
+		add_filter( 'woocommerce_asaas_settings_fields', array( Dynamic_Split_Fields::get_instance(), 'add_fields' ), 20, 2 );
 		add_filter( 'admin_init', array( Split_Wallet_Migration_Notices::get_instance(), 'init' ) );
 
 		add_filter( 'woocommerce_asaas_ticket_payment_fields', array( Checkout_Installments::get_instance(), 'add_ticket_installment_field' ), 10, 2 );
@@ -138,6 +140,14 @@ class WC_Asaas {
 		add_action( 'admin_notices', array( $this, 'check_checkout_settings' ) );
 
 		add_action( 'admin_init', array( $this, 'register_webhook_ajax_actions' ) );
+
+		// Inicializa o gerenciador de integrações de split
+		$split_manager = Split_Integration_Manager::get_instance();
+		
+		// Verifica se alguma integração está ativa antes de adicionar hooks relacionados
+		if ($split_manager->has_active_integrations()) {
+			add_action('init', array($split_manager, 'init_integrations'));
+		}
 	}
 
 	/**

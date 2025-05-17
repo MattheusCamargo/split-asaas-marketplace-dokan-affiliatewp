@@ -80,6 +80,15 @@ class Split_Settings {
 	 * @return string
 	 */
 	public function generate_split_wallet_html( string $key, array $data ) {
+		// Verifica se o split dinâmico está ativo
+		if (isset($this->gateway->settings['dynamic_split_enabled']) && $this->gateway->settings['dynamic_split_enabled'] === 'yes') {
+			$notice = sprintf(
+				'<div class="notice notice-info"><p>%s</p></div>',
+				esc_html__('O split dinâmico está ativo. A configuração manual de carteiras está desabilitada.', 'woo-asaas')
+			);
+			return $notice;
+		}
+
 		$wallet_value = absint( $this->gateway->settings['wallets'] );
 
 		if ( 0 === $wallet_value ) {

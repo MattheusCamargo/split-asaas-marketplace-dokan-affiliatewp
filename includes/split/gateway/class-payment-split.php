@@ -11,6 +11,7 @@ use Exception;
 use WC_Order;
 use WC_Asaas\Gateway\Gateway;
 use WC_Asaas\Split\Helper\Values_Formater_Helper;
+use WC_Asaas\Split\Integration\Split_Integration_Manager;
 
 /**
  * Handle init payment splits.
@@ -67,14 +68,30 @@ class Payment_Split {
 	 * @param Gateway  $gateway Current payment gateway.
 	 */
 	public function split_payment_data( array $payment_data, WC_Order $wc_order, Gateway $gateway ) {
-		$wallets = $gateway->settings['split_wallet'];
+		// Verifica se o split dinâmico está ativo
+		$integration_manager = Split_Integration_Manager::get_instance();
+		
+		if ( $integration_manager->is_dynamic_split_enabled() ) {
+			// Usa o calculador dinâmico
+			$calculator = Dynamic_Split_Calculator::get_instance();
+			$calculator->init( $gateway );
+			
+			$split_data = $calculator->calculate_order_splits( $wc_order );
+			if ( ! empty( $split_data ) ) {
+				$payment_data['split'] = $split_data;
+				$wc_order->add_order_note( __( 'Split dinâmico calculado e aplicado ao pagamento.', 'woo-asaas' ) );
+			}
+			
+			return $payment_data;
+		}
 
+		// Se o split dinâmico não está ativo, usa a lógica original
+		$wallets = $gateway->settings['split_wallet'];
 		if ( null === $wallets ) {
 			return $payment_data;
 		}
 
 		$wc_order->add_order_note( $this->order_notes( $wallets ) );
-
 		$this->add_split_log( $gateway, $wallets );
 
 		$split_data = $this->split_api_format( $wallets );
