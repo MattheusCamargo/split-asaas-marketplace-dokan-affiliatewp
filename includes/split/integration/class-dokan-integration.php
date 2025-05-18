@@ -69,36 +69,51 @@ class Dokan_Integration {
         ?>
         <div class="dokan-form-group">
             <label class="dokan-w3 dokan-control-label" for="asaas_wallet_id">
-                <?php esc_html_e('Asaas Wallet ID', 'woo-asaas'); ?>
+                <?php esc_html_e('ID da Carteira Asaas', 'woo-asaas'); ?> <span class="required">*</span>
             </label>
             <div class="dokan-w5">
                 <input type="text" class="dokan-form-control" name="asaas_wallet_id" id="asaas_wallet_id" 
-                    value="<?php echo esc_attr($wallet_id); ?>" />
+                    value="<?php echo esc_attr($wallet_id); ?>" required
+                    pattern="<?php echo Wallet_Validation_Helper::get_html_pattern(); ?>"
+                    placeholder="<?php echo Wallet_Validation_Helper::get_placeholder(); ?>" />
                 <p class="help-block">
-                    <?php esc_html_e('Informe seu ID de carteira Asaas para receber os pagamentos do marketplace.', 'woo-asaas'); ?>
-                </p>
+                    <?php 
+                    esc_html_e('Informe o ID da sua carteira Asaas para receber os pagamentos através de split. ', 'woo-asaas');
+                    echo Wallet_Validation_Helper::get_format_description(); 
+                    ?></p>
             </div>
         </div>
         <?php
     }
 
     /**
-     * Save Asaas Wallet ID when vendor settings are saved
-     *
-     * @param int $user_id User ID
+     * Save wallet ID in vendor settings
      */
     public function save_asaas_wallet_id($user_id) {
         if (isset($_POST['asaas_wallet_id']) && current_user_can('dokan_manage_store_settings')) {
-            update_user_meta(
-                $user_id,
-                'asaas_wallet_id',
-                sanitize_text_field($_POST['asaas_wallet_id'])
-            );
+            $wallet_id = sanitize_text_field($_POST['asaas_wallet_id']); 
+            
+            // Valida formato UUID
+            if (!empty($wallet_id)) {
+                if (!Wallet_Validation_Helper::is_valid_wallet_id($wallet_id)) {
+                    dokan_add_notice(
+                        __('O ID da carteira Asaas informado é inválido. ' . Wallet_Validation_Helper::get_format_description(), 'woo-asaas'),
+                        'error'
+                    );
+                    return;
+                }
+                
+                update_user_meta(
+                    $user_id,
+                    'asaas_wallet_id',
+                    $wallet_id
+                );
+            }
         }
     }
 
     /**
-     * Show notice to admin if vendors are missing Asaas Wallet ID
+     * Show notice to admin if vendors are missing wallet ID
      */
     public function show_wallet_missing_notice() {
         if (!current_user_can('manage_options')) {
@@ -106,12 +121,12 @@ class Dokan_Integration {
         }
 
         // Verifica se o split dinâmico está ativo
-        $gateway_settings = get_option('woocommerce_asaas-credit-card_settings'); // Poderia ser qualquer gateway Asaas
+        $gateway_settings = get_option('woocommerce_asaas-credit-card_settings');
         if (!isset($gateway_settings['dynamic_split_enabled']) || $gateway_settings['dynamic_split_enabled'] !== 'yes') {
             return;
         }
 
-        // Conta quantos vendedores estão sem wallet ID
+        // Conta vendedores sem wallet ID
         $vendor_query = new \WP_User_Query(array(
             'role' => 'seller',
             'meta_query' => array(
@@ -129,29 +144,25 @@ class Dokan_Integration {
         ));
 
         $vendors_without_wallet = $vendor_query->get_results();
-
         if (!empty($vendors_without_wallet)) {
             $count = count($vendors_without_wallet);
-            $message = sprintf(
-                /* translators: %d: number of vendors without wallet */
-                _n(
-                    '%d vendedor não configurou seu ID de carteira Asaas e não poderá receber pagamentos via split.',
-                    '%d vendedores não configuraram seu ID de carteira Asaas e não poderão receber pagamentos via split.',
-                    $count,
-                    'woo-asaas'
-                ),
-                $count
-            );
-
             printf(
                 '<div class="notice notice-warning"><p>%s</p></div>',
-                esc_html($message)
+                sprintf(
+                    _n(
+                        '%d vendedor não configurou o ID da carteira Asaas e não poderá receber pagamentos via split.',
+                        '%d vendedores não configuraram o ID da carteira Asaas e não poderão receber pagamentos via split.',
+                        $count,
+                        'woo-asaas'
+                    ),
+                    $count
+                )
             );
         }
     }
 
     /**
-     * Show notice to vendor in their dashboard if Asaas Wallet ID is missing
+     * Show notice to vendor in their dashboard if wallet ID is missing
      */
     public function show_vendor_wallet_missing_notice() {
         if (!dokan_is_user_seller(get_current_user_id())) {
@@ -160,14 +171,14 @@ class Dokan_Integration {
 
         // Verifica se o split dinâmico está ativo
         $gateway_settings = get_option('woocommerce_asaas-credit-card_settings');
-        if (!isset($gateway_settings['dynamic_split_enabled']) || $gateway_settings['dynamic_split_enabled'] !== 'yes') {
+        if (!isset($gateway_settings['dynamic_split_enabled']) && $gateway_settings['dynamic_split_enabled'] !== 'yes') {
             return;
         }
 
         $wallet_id = get_user_meta(get_current_user_id(), 'asaas_wallet_id', true);
         if (empty($wallet_id)) {
             echo '<div class="dokan-alert dokan-alert-warning">';
-            esc_html_e('Você precisa configurar seu ID de carteira Asaas para receber pagamentos via split. Configure nas configurações da sua loja.', 'woo-asaas');
+            esc_html_e('Você precisa configurar o ID da sua carteira Asaas para receber pagamentos via split. Configure isso nas configurações da sua loja.', 'woo-asaas');
             echo '</div>';
         }
     }

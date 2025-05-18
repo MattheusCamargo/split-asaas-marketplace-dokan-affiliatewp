@@ -72,14 +72,18 @@ class AffiliateWP_Integration {
         ?>
         <tr class="form-row form-required">
             <th scope="row">
-                <label for="asaas_wallet_id"><?php esc_html_e('Asaas Wallet ID', 'woo-asaas'); ?></label>
+                <label for="asaas_wallet_id"><?php esc_html_e('ID da Carteira Asaas', 'woo-asaas'); ?></label>
             </th>
             <td>
                 <input type="text" name="asaas_wallet_id" id="asaas_wallet_id" 
-                       value="<?php echo esc_attr($wallet_id); ?>" class="regular-text" />
+                    value="<?php echo esc_attr($wallet_id); ?>" class="regular-text"
+                    pattern="<?php echo Wallet_Validation_Helper::get_html_pattern(); ?>"
+                    placeholder="<?php echo Wallet_Validation_Helper::get_placeholder(); ?>" required />
                 <p class="description">
-                    <?php esc_html_e('ID da carteira Asaas para recebimento das comissões via split.', 'woo-asaas'); ?>
-                </p>
+                    <?php 
+                    esc_html_e('Informe o ID da sua carteira Asaas para receber as comissões através de split. ', 'woo-asaas');
+                    echo Wallet_Validation_Helper::get_format_description(); 
+                    ?></p>
             </td>
         </tr>
         <?php
@@ -91,32 +95,47 @@ class AffiliateWP_Integration {
     public function add_wallet_field_to_registration() {
         ?>
         <p>
-            <label for="affwp-asaas-wallet-id"><?php esc_html_e('Asaas Wallet ID', 'woo-asaas'); ?></label>
-            <input type="text" name="asaas_wallet_id" id="affwp-asaas-wallet-id" class="required" />
+            <label for="affwp-asaas-wallet-id"><?php esc_html_e('ID da Carteira Asaas', 'woo-asaas'); ?></label>
+            <input type="text" name="asaas_wallet_id" id="affwp-asaas-wallet-id" class="required"
+                pattern="<?php echo Wallet_Validation_Helper::get_html_pattern(); ?>"
+                placeholder="<?php echo Wallet_Validation_Helper::get_placeholder(); ?>" required />
             <span class="description">
-                <?php esc_html_e('Seu ID de carteira Asaas para receber comissões via split de pagamento.', 'woo-asaas'); ?>
-            </span>
+                <?php 
+                esc_html_e('Informe o ID da sua carteira Asaas para receber comissões através de split. ', 'woo-asaas');
+                echo Wallet_Validation_Helper::get_format_description(); 
+                ?></span>
         </p>
         <?php
     }
 
     /**
-     * Save Asaas Wallet ID when affiliate is updated
-     *
-     * @param int $affiliate_id Affiliate ID
+     * Save Asaas Wallet ID when affiliate settings are saved
      */
     public function save_asaas_wallet_id($affiliate_id) {
-        if (!current_user_can('manage_affiliates') && !current_user_can('manage_affiliate')) {
+        if (!isset($_POST['asaas_wallet_id']) || !current_user_can('manage_affiliates')) {
             return;
         }
 
-        if (isset($_POST['asaas_wallet_id'])) {
-            $user_id = affwp_get_affiliate_user_id($affiliate_id);
-            update_user_meta(
-                $user_id,
-                'asaas_wallet_id',
-                sanitize_text_field($_POST['asaas_wallet_id'])
-            );
+        $user_id = affwp_get_affiliate_user_id($affiliate_id);
+        if ($user_id) {
+            $wallet_id = sanitize_text_field($_POST['asaas_wallet_id']);
+
+            // Valida formato UUID
+            if (!empty($wallet_id)) {
+                if (!Wallet_Validation_Helper::is_valid_wallet_id($wallet_id)) {
+                    affwp_add_notice(
+                        __('O ID da carteira Asaas informado é inválido. ' . Wallet_Validation_Helper::get_format_description(), 'woo-asaas'),
+                        'error'
+                    );
+                    return;
+                }
+
+                update_user_meta(
+                    $user_id,
+                    'asaas_wallet_id',
+                    $wallet_id
+                );
+            }
         }
     }
 
@@ -129,16 +148,25 @@ class AffiliateWP_Integration {
      */
     public function save_wallet_id_on_registration($affiliate_id, $args, $user_id) {
         if (isset($_POST['asaas_wallet_id'])) {
-            update_user_meta(
-                $user_id,
-                'asaas_wallet_id',
-                sanitize_text_field($_POST['asaas_wallet_id'])
-            );
+            $wallet_id = sanitize_text_field($_POST['asaas_wallet_id']);
+            
+            // Valida formato UUID
+            if (!empty($wallet_id)) {
+                if (!Wallet_Validation_Helper::is_valid_wallet_id($wallet_id)) {
+                    return; // Não salva se inválido no registro
+                }
+                
+                update_user_meta(
+                    $user_id,
+                    'asaas_wallet_id',
+                    $wallet_id
+                );
+            }
         }
     }
 
     /**
-     * Show notice to admin if affiliates are missing Asaas Wallet ID
+     * Show notice to admin if affiliates are missing wallet ID
      */
     public function show_wallet_missing_notice() {
         if (!current_user_can('manage_affiliates')) {
@@ -151,47 +179,46 @@ class AffiliateWP_Integration {
             return;
         }
 
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'affiliate_wp_affiliates';
-        
-        // Busca afiliados ativos
-        $affiliates = $wpdb->get_results("SELECT * FROM $table_name WHERE status = 'active'");
-        $without_wallet = 0;
+        // Conta afiliados ativos sem wallet ID
+        $affiliates = affiliate_wp()->affiliates->get_affiliates(array(
+            'status' => 'active',
+            'number' => -1
+        ));
 
-        foreach ($affiliates as $affiliate) {
-            $user_id = affwp_get_affiliate_user_id($affiliate->affiliate_id);
-            $wallet_id = get_user_meta($user_id, 'asaas_wallet_id', true);
-            
-            if (empty($wallet_id)) {
-                $without_wallet++;
+        $count = 0;
+        if ($affiliates) {
+            foreach ($affiliates as $affiliate) {
+                $user_id = affwp_get_affiliate_user_id($affiliate->ID);
+                if ($user_id) {
+                    $wallet_id = get_user_meta($user_id, 'asaas_wallet_id', true);
+                    if (empty($wallet_id)) {
+                        $count++;
+                    }
+                }
             }
         }
 
-        if ($without_wallet > 0) {
-            $message = sprintf(
-                /* translators: %d: number of affiliates without wallet */
-                _n(
-                    '%d afiliado ativo não possui ID de carteira Asaas configurado e não poderá receber comissões via split.',
-                    '%d afiliados ativos não possuem ID de carteira Asaas configurado e não poderão receber comissões via split.',
-                    $without_wallet,
-                    'woo-asaas'
-                ),
-                $without_wallet
-            );
-
+        if ($count > 0) {
             printf(
                 '<div class="notice notice-warning"><p>%s</p></div>',
-                esc_html($message)
+                sprintf(
+                    _n(
+                        '%d afiliado ativo não configurou o ID da carteira Asaas e não poderá receber comissões via split.',
+                        '%d afiliados ativos não configuraram o ID da carteira Asaas e não poderão receber comissões via split.',
+                        $count,
+                        'woo-asaas'
+                    ),
+                    $count
+                )
             );
         }
     }
 
     /**
-     * Show notice to affiliate in their dashboard if Asaas Wallet ID is missing
+     * Show notice to affiliate in their dashboard if wallet ID is missing
      */
     public function show_affiliate_wallet_missing_notice() {
-        $affiliate_id = affwp_get_affiliate_id();
-        if (!$affiliate_id) {
+        if (!affwp_is_affiliate()) {
             return;
         }
 
@@ -201,13 +228,19 @@ class AffiliateWP_Integration {
             return;
         }
 
-        $user_id = affwp_get_affiliate_user_id($affiliate_id);
-        $wallet_id = get_user_meta($user_id, 'asaas_wallet_id', true);
+        $affiliate_id = affwp_get_affiliate_id();
+        if (!$affiliate_id) {
+            return;
+        }
 
-        if (empty($wallet_id)) {
-            affwp_print_notice('warning', 
-                __('Você precisa configurar seu ID de carteira Asaas para receber comissões via split. Configure em seu perfil de afiliado.', 'woo-asaas')
-            );
+        $user_id = affwp_get_affiliate_user_id($affiliate_id);
+        if ($user_id) {
+            $wallet_id = get_user_meta($user_id, 'asaas_wallet_id', true);
+            if (empty($wallet_id)) {
+                affwp_print_notice('warning', 
+                    __('Você precisa configurar o ID da sua carteira Asaas para receber comissões via split. Configure isso no seu perfil de afiliado.', 'woo-asaas')
+                );
+            }
         }
     }
 

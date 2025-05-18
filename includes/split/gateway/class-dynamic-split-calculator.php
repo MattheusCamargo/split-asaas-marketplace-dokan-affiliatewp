@@ -107,11 +107,20 @@ class Dynamic_Split_Calculator {
             $total_products_value += $item_total;
 
             // Calcula comissão do marketplace para este item
+            // Marketplace
             $marketplace_commission = Split_Calculator_Helper::calculate_marketplace_commission(
-                $item_total,
+                $item_total, 
                 $this->integration_manager->get_marketplace_commission_percentage()
             );
-            $total_marketplace_commission += $marketplace_commission;
+
+            // Afiliado - Prioridade de cálculo 
+            if ($commission_type === 'percentage_after_marketplace') {
+                $base_amount = $order_total - $marketplace_commission;
+                $commission = ($base_amount * $percentage) / 100;
+            } else {
+                // Usa valor do AffiliateWP
+                $commission = $referral->amount;
+            }
 
             // Identifica o vendedor e seu valor
             $seller_data = $this->get_seller_data($item);
@@ -260,5 +269,43 @@ class Dynamic_Split_Calculator {
             $deduction = $affiliate_commission * $proportion;
             $data['amount'] = max(0, $data['amount'] - $deduction);
         }
+    }
+    
+    /**
+     * Validate split amounts
+     *
+     * @param array $splits Array of split data
+     * @param float $total_amount Total amount to be split
+     * @return true|string True if valid, error message otherwise
+     */
+    private function validate_split_amounts($splits, $total_amount) {
+        $split_total = 0;
+        foreach ($splits as $split) {
+            // Verifica se todos têm wallet_id
+            if (!isset($split['walletId']) || empty($split['walletId'])) {
+                return __('Wallet ID ausente em um dos splits.', 'woo-asaas');
+            }
+
+            // Valida valor do split
+            if (!isset($split['fixedValue']) || $split['fixedValue'] <= 0) {
+                return sprintf(
+                    __('Valor inválido para wallet %s', 'woo-asaas'),
+                    $split['walletId']
+                );
+            }
+
+            $split_total += $split['fixedValue'];
+        }
+
+        // Soma dos splits deve bater com total
+        if (abs($split_total - $total_amount) > 0.01) {
+            return sprintf(
+                __('Soma dos splits (%.2f) não corresponde ao valor total (%.2f)', 'woo-asaas'),
+                $split_total,
+                $total_amount
+            );
+        }
+
+        return true;
     }
 }

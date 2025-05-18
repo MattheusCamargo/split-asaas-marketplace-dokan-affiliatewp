@@ -181,10 +181,7 @@ class Values_Formater_Helper {
 	 * @return bool Returns true if the wallet ID is valid, false otherwise.
 	 */
 	public function valid_wallet_id( string $wallet_id ) {
-		$pattern         = '/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i';
-		$valid_wallet_id = (bool) preg_match( $pattern, $wallet_id );
-
-		return $valid_wallet_id;
+		return Wallet_Validation_Helper::is_valid_wallet_id($wallet_id);
 	}
 
 	/**
