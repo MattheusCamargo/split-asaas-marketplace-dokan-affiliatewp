@@ -12,6 +12,8 @@ use WC_Order;
 use WC_Asaas\Gateway\Gateway;
 use WC_Asaas\Split\Helper\Values_Formater_Helper;
 use WC_Asaas\Split\Integration\Split_Integration_Manager;
+use WC_Asaas\Split\Meta\Split_Meta;
+use WC_Asaas\Split\Database\Split_History;
 
 /**
  * Handle init payment splits.
@@ -63,9 +65,10 @@ class Payment_Split {
 	/**
 	 * Handle with Gateway payment split.
 	 *
-	 * @param array    $payment_data Number of split.
+	 * @param array    $payment_data Payment data.
 	 * @param WC_Order $wc_order WC Order object.
 	 * @param Gateway  $gateway Current payment gateway.
+	 * @return array Updated payment data
 	 */
 	public function split_payment_data( array $payment_data, WC_Order $wc_order, Gateway $gateway ) {
 		// Verifica se o split dinâmico está ativo
@@ -79,6 +82,26 @@ class Payment_Split {
 			$split_data = $calculator->calculate_order_splits( $wc_order );
 			if ( ! empty( $split_data ) ) {
 				$payment_data['split'] = $split_data;
+				
+				// Salva os dados do split
+				$meta = Split_Meta::get_instance();
+				$meta->save_split_data( $wc_order, $split_data );
+				$meta->update_split_status( $wc_order, 'pending' );
+				
+				// Se tiver payment_id, salva no histórico
+				if ( isset( $payment_data['payment_id'] ) ) {
+					$history = Split_History::get_instance();
+					$history->record_split( array(
+						'order_id'              => $wc_order->get_id(),
+						'payment_id'            => $payment_data['payment_id'],
+						'split_data'            => wp_json_encode( $split_data ),
+						'status'                => 'pending',
+						'total_amount'          => $wc_order->get_total(),
+						'marketplace_commission'=> $calculator->get_total_marketplace_commission(),
+						'affiliate_commission'  => $calculator->get_total_affiliate_commission()
+					) );
+				}
+
 				$wc_order->add_order_note( __( 'Split dinâmico calculado e aplicado ao pagamento.', 'woo-asaas' ) );
 			}
 			
@@ -97,6 +120,11 @@ class Payment_Split {
 		$split_data = $this->split_api_format( $wallets );
 		if ( ! empty( $split_data ) ) {
 			$payment_data['split'] = $split_data;
+			
+			// Salva os dados do split manual também
+			$meta = Split_Meta::get_instance();
+			$meta->save_split_data( $wc_order, $split_data );
+			$meta->update_split_status( $wc_order, 'pending' );
 		}
 
 		return $payment_data;

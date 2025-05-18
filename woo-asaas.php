@@ -20,4 +20,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once 'autoload.php';
 
+use WC_Asaas\Split\Install\Split_Installer;
+
 add_action( 'plugins_loaded', array( \WC_Asaas\WC_Asaas::class, 'get_instance' ) );
+
+// Hook de ativação para instalar tabelas do split
+register_activation_hook(__FILE__, function() {
+    $installer = Split_Installer::get_instance();
+    if ($installer->needs_install()) {
+        $installer->install();
+    }
+});

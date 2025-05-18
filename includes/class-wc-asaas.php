@@ -39,6 +39,7 @@ use WC_Asaas\My_Account\WooCommerce_My_Account;
 use WC_Asaas\Checkout\Checkout;
 use WC_Asaas\Webhook\Webhook_Ajax;
 use WC_Asaas\Split\Integration\Split_Integration_Manager;
+use WC_Asaas\Split\Webhook\Split_Webhook_Handler;
 
 /**
  * Asaas Gateway for WooCommerce main class
@@ -148,6 +149,9 @@ class WC_Asaas {
 		if ($split_manager->has_active_integrations()) {
 			add_action('init', array($split_manager, 'init_integrations'));
 		}
+
+		// Inicializa o gerenciador de webhooks de split
+		Split_Webhook_Handler::get_instance();
 	}
 
 	/**
