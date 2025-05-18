@@ -36,12 +36,12 @@ function autoload( $class_name ) {
 	$class_file = array_pop( $class_path );
 	$class_path = implode( '/', $class_path );
 	
-	$file_path = __DIR__ . '/includes/' . ($class_path ? $class_path . '/' : '') . 'class-' . $class_file . '.php';
+	$file_path = __DIR__ . '/includes/' . ($class_path ? rtrim($class_path, '/') . '/' : '') . 'class-' . $class_file . '.php';
 	if (!file_exists($file_path)) {
 		// Tenta encontrar em subdiretórios comuns
-		$subdirs = array('admin/settings', 'admin', 'gateway', 'integration');
+		$subdirs = array('admin/settings', 'admin', 'gateway', 'integration', 'split/admin/settings', 'split/admin');
 		foreach ($subdirs as $subdir) {
-			$alt_path = __DIR__ . '/includes/split/' . $subdir . '/class-' . $class_file . '.php';
+			$alt_path = __DIR__ . '/includes/' . $subdir . '/class-' . $class_file . '.php';
 			if (file_exists($alt_path)) {
 				$file_path = $alt_path;
 				break;
