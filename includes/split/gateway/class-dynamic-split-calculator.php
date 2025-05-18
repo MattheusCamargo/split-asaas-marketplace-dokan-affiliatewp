@@ -107,20 +107,11 @@ class Dynamic_Split_Calculator {
             $total_products_value += $item_total;
 
             // Calcula comissão do marketplace para este item
-            // Marketplace
             $marketplace_commission = Split_Calculator_Helper::calculate_marketplace_commission(
-                $item_total, 
+                $item_total,
                 $this->integration_manager->get_marketplace_commission_percentage()
             );
-
-            // Afiliado - Prioridade de cálculo 
-            if ($commission_type === 'percentage_after_marketplace') {
-                $base_amount = $order_total - $marketplace_commission;
-                $commission = ($base_amount * $percentage) / 100;
-            } else {
-                // Usa valor do AffiliateWP
-                $commission = $referral->amount;
-            }
+            $total_marketplace_commission += $marketplace_commission;
 
             // Identifica o vendedor e seu valor
             $seller_data = $this->get_seller_data($item);
@@ -307,5 +298,22 @@ class Dynamic_Split_Calculator {
         }
 
         return true;
+    }
+
+    /**
+     * Get shipping recipient for an order
+     *
+     * @param WC_Order $order Order object
+     * @return array|false Recipient data array or false if not found
+     */
+    private function get_shipping_recipient($order) {
+        // Por padrão, o frete vai para o vendedor do primeiro item do pedido
+        $items = $order->get_items();
+        if (empty($items)) {
+            return false;
+        }
+
+        $first_item = reset($items);
+        return $this->get_seller_data($first_item);
     }
 }
