@@ -46,12 +46,12 @@ use WC_Asaas\Split\Webhook\Split_Webhook_Handler;
  */
 class WC_Asaas {
     
-    /**
-     * Instance of this class
-     *
-     * @var self
-     */
-    private static $instance = null;
+	/**
+	 * Instance of this class
+	 *
+	 * @var self
+	 */
+	protected static $instance = null;
     
 	/**
 	 * WooCommerce version.
@@ -59,13 +59,6 @@ class WC_Asaas {
 	 * @var string
 	 */
 	public $version = '2.6.6';
-
-	/**
-	 * Instance of this class
-	 *
-	 * @var self
-	 */
-	protected static $instance = null;
 
 	/**
 	 * Gateway list with id
@@ -80,6 +73,13 @@ class WC_Asaas {
 	 * Block external object instantiation.
 	 */
 	private function __construct() {
+		add_action( 'plugins_loaded', array( $this, 'init_plugin' ) );
+	}
+
+	/**
+	 * Initialize plugin after all plugins are loaded
+	 */
+	public function init_plugin() {
 		add_action( 'init', array( $this, 'load_plugin_textdomain' ) );
 
 		$dependency = Plugin_Dependency::get_instance();
@@ -89,9 +89,12 @@ class WC_Asaas {
 			return;
 		}
 
-		add_action( 'init', array( Endpoint::get_instance(), 'custom_rewrite_basic' ) );
-		add_action( 'init', array( $this, 'init_form_fields' ) );
-		add_action( 'init', array( Expired_Ticket_Cron::get_instance(), 'schedule_remove_expired_ticket' ) );
+		add_action( 'init', function() {
+			Endpoint::get_instance()->custom_rewrite_basic();
+			$this->init_form_fields();
+			Expired_Ticket_Cron::get_instance()->schedule_remove_expired_ticket();
+		});
+
 		add_action( 'remove_expired_ticket', array( Expired_Ticket_Cron::get_instance(), 'remove_expired_ticket' ) );
 		add_action( 'remove_expired_pix_asaas', array( Expired_Pix_Cron::get_instance(), 'execute_remove_expired_pix' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_files' ) );

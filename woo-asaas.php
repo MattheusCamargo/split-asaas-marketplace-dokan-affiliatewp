@@ -22,7 +22,18 @@ require_once 'autoload.php';
 
 use WC_Asaas\Split\Install\Split_Installer;
 
-add_action( 'plugins_loaded', array( \WC_Asaas\WC_Asaas::class, 'get_instance' ) );
+// Adiciona função para carregar textdomain dos plugins dependentes primeiro
+function woo_asaas_load_plugin_textdomains() {
+    // Carrega traduções na ordem correta
+    load_plugin_textdomain('woocommerce');
+    load_plugin_textdomain('dokan');
+    load_plugin_textdomain('affiliate-wp');
+    load_plugin_textdomain('woo-asaas');
+}
+add_action('plugins_loaded', 'woo_asaas_load_plugin_textdomains', 0);
+
+// Inicializa o plugin após carregar as traduções
+add_action('plugins_loaded', array(\WC_Asaas\WC_Asaas::class, 'get_instance'), 10);
 
 // Hook de ativação para instalar tabelas do split
 register_activation_hook(__FILE__, function() {
