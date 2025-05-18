@@ -27,10 +27,12 @@ class Dokan_Integration {
     private function __construct() {
         // Se o Dokan está ativo, adiciona os hooks necessários
         if ($this->is_dokan_active()) {
-            add_action('dokan_settings_form_bottom', array($this, 'add_asaas_wallet_field'), 10);
-            add_action('dokan_store_profile_saved', array($this, 'save_asaas_wallet_id'), 10);
-            add_action('admin_notices', array($this, 'show_wallet_missing_notice'));
-            add_action('dokan_dashboard_content_inside_before', array($this, 'show_vendor_wallet_missing_notice'));
+            add_action('init', function() {
+                add_action('dokan_settings_form_bottom', array($this, 'add_asaas_wallet_field'), 10);
+                add_action('dokan_store_profile_saved', array($this, 'save_asaas_wallet_id'), 10);
+                add_action('admin_notices', array($this, 'show_wallet_missing_notice'));
+                add_action('dokan_dashboard_content_inside_before', array($this, 'show_vendor_wallet_missing_notice'));
+            });
         }
     }
 

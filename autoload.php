@@ -35,7 +35,20 @@ function autoload( $class_name ) {
 	$class_path = explode( '\\', $class_file );
 	$class_file = array_pop( $class_path );
 	$class_path = implode( '/', $class_path );
-
-	require_once __DIR__ . '/includes/' . $class_path . '/class-' . $class_file . '.php';
+	
+	$file_path = __DIR__ . '/includes/' . ($class_path ? $class_path . '/' : '') . 'class-' . $class_file . '.php';
+	if (!file_exists($file_path)) {
+		// Tenta encontrar em subdiretórios comuns
+		$subdirs = array('admin/settings', 'admin', 'gateway', 'integration');
+		foreach ($subdirs as $subdir) {
+			$alt_path = __DIR__ . '/includes/split/' . $subdir . '/class-' . $class_file . '.php';
+			if (file_exists($alt_path)) {
+				$file_path = $alt_path;
+				break;
+			}
+		}
+	}
+	
+	require_once $file_path;
 }
 spl_autoload_register( __NAMESPACE__ . '\autoload' );

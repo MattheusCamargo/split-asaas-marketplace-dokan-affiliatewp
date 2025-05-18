@@ -1,6 +1,16 @@
 <?php
 /**
- * AffiliateWP Integration class
+ * AffiliateWP I    private function __construct() {
+        // Se o AffiliateWP está ativo, adiciona os hooks necessários
+        if ($this->is_affwp_active()) {
+            add_action('init', function() {
+                add_action('affwp_edit_affiliate_end', array($this, 'add_asaas_wallet_field'));
+                add_action('affwp_update_affiliate', array($this, 'save_asaas_wallet_id'));
+                add_action('admin_notices', array($this, 'show_wallet_missing_notice'));
+                add_action('affwp_affiliate_dashboard_notices', array($this, 'show_affiliate_wallet_missing_notice'));
+            });
+        }
+    }n class
  *
  * @package WooAsaas
  */

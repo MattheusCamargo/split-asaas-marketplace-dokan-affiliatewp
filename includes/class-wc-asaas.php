@@ -45,7 +45,14 @@ use WC_Asaas\Split\Webhook\Split_Webhook_Handler;
  * Asaas Gateway for WooCommerce main class
  */
 class WC_Asaas {
-
+    
+    /**
+     * Instance of this class
+     *
+     * @var self
+     */
+    private static $instance = null;
+    
 	/**
 	 * WooCommerce version.
 	 *
