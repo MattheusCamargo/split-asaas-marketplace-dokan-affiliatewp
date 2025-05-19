@@ -249,9 +249,8 @@ class WC_Asaas {
 	 * Load plugin textdomain file
 	 */
 	public function load_plugin_textdomain() {
-		$domain                 = 'woo-asaas';
-		$languages_rel_dir_path = '/../languages/';
-		load_textdomain( $domain, __DIR__ . $languages_rel_dir_path . '/' . $domain . '-' . get_locale() . '.mo' );
+		$domain = 'woo-asaas';
+		load_plugin_textdomain($domain, false, dirname(plugin_basename(WP_PLUGIN_DIR . '/woo-asaas/woo-asaas.php')) . '/languages');
 	}
 
 	/**
